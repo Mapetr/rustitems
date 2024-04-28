@@ -103,34 +103,42 @@ app.post("/api/add/steamId", async (req, res) => {
   }
 });
 
+let lastInventoryCheck = 0;
+let price = 0;
+let marketSupply = 0;
+
 app.get("/api/inventory", async (req, res) => {
   const itemId = "5594397966";
 
   const itemCounts = {};
 
   try {
-    const { data: priceData } = await axios.get("https://steamcommunity.com/market/search?q=scarecrow+facemask", {
-      headers: {
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "accept-language": "en-US,en;q=0.9",
-        "sec-ch-ua": "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"",
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": "\"Windows\"",
-        "sec-fetch-dest": "document",
-        "sec-fetch-mode": "navigate",
-        "sec-fetch-site": "same-origin",
-        "sec-fetch-user": "?1",
-        "upgrade-insecure-requests": "1",
-        "Referer": "https://steamcommunity.com/market/search",
-        "Referrer-Policy": "strict-origin-when-cross-origin"
-      }
-    });
+    if (Time.now() - lastInventoryCheck > 60000) {
+      const { data: priceData } = await axios.get("https://steamcommunity.com/market/search?q=scarecrow+facemask", {
+        headers: {
+          "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+          "accept-language": "en-US,en;q=0.9",
+          "sec-ch-ua": "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "\"Windows\"",
+          "sec-fetch-dest": "document",
+          "sec-fetch-mode": "navigate",
+          "sec-fetch-site": "same-origin",
+          "sec-fetch-user": "?1",
+          "upgrade-insecure-requests": "1",
+          "Referer": "https://steamcommunity.com/market/search",
+          "Referrer-Policy": "strict-origin-when-cross-origin"
+        }
+      });
 
-    const $ = cheerio.load(priceData);
+      const $ = cheerio.load(priceData);
+  
+      price = $(".normal_price[data-price]").attr("data-price") ?? price;
+  
+      marketSupply = $(".market_listing_num_listings_qty[data-qty]").attr("data-qty") ?? marketSupply;
 
-    const price = $(".normal_price[data-price]").attr("data-price") ?? 0;
-
-    const marketSupply = $(".market_listing_num_listings_qty[data-qty]").attr("data-qty") ?? 0;
+      lastInventoryCheck = Time.now();
+    }
 
     const rows = await new Promise((resolve, reject) => {
       db.all("SELECT * FROM steamUsers", (err, rows) => {
