@@ -144,7 +144,15 @@ app.get("/api/inventory", async (req, res) => {
         `https://steamcommunity.com/inventory/${row.steamId}/252490/2?l=english&count=500`
       );
 
-      if (!data["assets"]) continue;
+      if (!data["assets"]) {
+        itemCounts[row.steamId] = {
+          name: row.steamName.replace(/bandit.camp/gi, "").trim(),
+          amount: "unavailable",
+          USDPrice: "unavailable",
+          USDPriceAfterFee: "unavailable"
+        };
+        continue;
+      };
 
       const amount = data["assets"].filter((item) => item.classid === itemId).length;
       
