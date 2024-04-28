@@ -147,9 +147,9 @@ app.get("/api/inventory", async (req, res) => {
       if (!data["assets"]) {
         itemCounts[row.steamId] = {
           name: row.steamName.replace(/bandit.camp/gi, "").trim(),
-          amount: "unavailable",
-          USDPrice: "unavailable",
-          USDPriceAfterFee: "unavailable"
+          amount: 0,
+          USDPrice: 0,
+          USDPriceAfterFee: 0
         };
         continue;
       };
