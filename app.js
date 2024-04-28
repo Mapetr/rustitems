@@ -113,7 +113,7 @@ app.get("/api/inventory", async (req, res) => {
   const itemCounts = {};
 
   try {
-    if (Time.now() - lastInventoryCheck > 60000) {
+    if (Date.now() - lastInventoryCheck > 60000) {
       const { data: priceData } = await axios.get("https://steamcommunity.com/market/search?q=scarecrow+facemask", {
         headers: {
           "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -137,7 +137,7 @@ app.get("/api/inventory", async (req, res) => {
   
       marketSupply = $(".market_listing_num_listings_qty[data-qty]").attr("data-qty") ?? marketSupply;
 
-      lastInventoryCheck = Time.now();
+      lastInventoryCheck = Date.now();
     }
 
     const rows = await new Promise((resolve, reject) => {
