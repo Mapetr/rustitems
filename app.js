@@ -20,7 +20,7 @@ app.get("/", (req, res) => {
       <input type="text" name="steamVU" placeholder="Steam Vanity URL" />
       <button type="submit">Submit</button>
     </form>
-    <a href="/api/inventory">Check inventories</a>
+    <a href="/inventory">Check inventories</a>
     `);
 });
 
@@ -29,7 +29,7 @@ app.post("/api/add/steamId", async (req, res) => {
   const steamVU = req.body.steamVU;
   const steamApiKey = process.env.KEY;
 
-  
+
   if (!steamId && steamVU) {
     try {
       const { data } = await axios.get(
@@ -45,7 +45,7 @@ app.post("/api/add/steamId", async (req, res) => {
   if (!steamId) {
     res.send("Steam ID or Vanity URL is required");
   }
-  
+
   try {
     const { data } = await axios.get(
       `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${steamApiKey}&format=json&steamids=${steamId}`
@@ -63,7 +63,7 @@ app.post("/api/add/steamId", async (req, res) => {
       res.send(`
         Steam ID already exists
         <div>
-          <a href="/api/inventory">Check inventories</a>
+          <a href="/inventory">Check inventories</a>
         </div>
         <div>
           <a href="/">Go back</a>
@@ -81,7 +81,7 @@ app.post("/api/add/steamId", async (req, res) => {
           res.send(`
             Steam ID added successfully
             <div>
-              <a href="/api/inventory">Check inventories</a>
+              <a href="/inventory">Check inventories</a>
             </div>
             <div>
               <a href="/">Go back</a>
@@ -94,7 +94,7 @@ app.post("/api/add/steamId", async (req, res) => {
     res.send(`
       Error adding Steam ID
       <div>
-        <a href="/api/inventory">Check inventories</a>
+        <a href="/inventory">Check inventories</a>
       </div>
       <div>
         <a href="/">Go back</a>
@@ -113,7 +113,7 @@ app.get("/api/inventory", async (req, res) => {
   const itemCounts = {};
 
   try {
-    if (Date.now() - lastInventoryCheck > 60000) {
+    // if (Date.now() - lastInventoryCheck > 60000) {
       const { data: priceData } = await axios.get("https://steamcommunity.com/market/search?q=scarecrow+facemask", {
         headers: {
           "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -132,13 +132,13 @@ app.get("/api/inventory", async (req, res) => {
       });
 
       const $ = cheerio.load(priceData);
-  
+
       price = $(".normal_price[data-price]").attr("data-price") ?? price;
-  
+
       marketSupply = $(".market_listing_num_listings_qty[data-qty]").attr("data-qty") ?? marketSupply;
 
       lastInventoryCheck = Date.now();
-    }
+    // }
 
     const rows = await new Promise((resolve, reject) => {
       db.all("SELECT * FROM steamUsers", (err, rows) => {
@@ -146,6 +146,8 @@ app.get("/api/inventory", async (req, res) => {
         resolve(rows);
       });
     });
+
+    console.log(rows);
 
     for (const row of rows) {
       const { data } = await axios.get(
@@ -160,10 +162,10 @@ app.get("/api/inventory", async (req, res) => {
           USDPriceAfterFee: 0
         };
         continue;
-      };
+      }
 
       const amount = data["assets"].filter((item) => item.classid === itemId).length;
-      
+
       itemCounts[row.steamId] = {
         name: row.steamName.replace(/bandit.camp/gi, "").trim(),
         amount: amount,
@@ -176,20 +178,68 @@ app.get("/api/inventory", async (req, res) => {
     const totalUSDPrice = Math.round(Object.values(itemCounts).reduce((acc, curr) => acc + curr.USDPrice, 0) * 100) / 100;
     const totalUSDPriceAfterFee = Math.round(Object.values(itemCounts).reduce((acc, curr) => acc + curr.USDPriceAfterFee, 0) * 100) / 100;
 
-    res.send(`
-      <a href="/">Go back</a>
-      <h1>Scarecrow Facemasks</h1>
-      <pre>${JSON.stringify(itemCounts, null, 2)}</pre>
-      <p>single price: ${price / 100}$ / ${Math.round((price / 1.15)+1) / 100}$</p>
-      <p>total count: ${totalAmount} (${totalUSDPrice}$ / ${totalUSDPriceAfterFee}$)</p>
-      <p>market supply: ${marketSupply}</p>
-    `);
+    res.json(itemCounts);
+
+    // res.send(`
+    //   <a href="/">Go back</a>
+    //   <h1>Scarecrow Facemasks</h1>
+    //   <pre>${JSON.stringify(itemCounts, null, 2)}</pre>
+    //   <p>single price: ${price / 100}$ / ${Math.round((price / 1.15)+1) / 100}$</p>
+    //   <p>total count: ${totalAmount} (${totalUSDPrice}$ / ${totalUSDPriceAfterFee}$)</p>
+    //   <p>market supply: ${marketSupply}</p>
+    // `);
   } catch (error) {
     console.error(error);
-    res.send("něco je špatně, zjisti si to sám :D <= (toho smajlíka tam dal github copilot)");
+    res.status(500).send("něco je špatně, zjisti si to sám :D <= (toho smajlíka tam dal github copilot)");
   }
 });
 
+app.get("/inventory", async (req, res) => {
+  try {
+    res.send(`
+    <a href="/">Go back</a>
+    <h1>Scarecrow Facemasks</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Amount</th>
+          <th>USD Price</th>
+          <th>USD Price After Fee</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+    <script>
+      const table = document.querySelector("table");
+      
+        fetch("/api/inventory")
+        .then((res) => res.json())
+        .then((data) => {
+        console.log(data);
+          for (const [steamId, { name, amount, USDPrice, USDPriceAfterFee }] of Object.entries(data)) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = \`
+              <td>\${name}</td>
+              <td>\${amount}</td>
+              <td>\${USDPrice}$</td>
+              <td>\${USDPriceAfterFee}$</td>
+            \`;
+            tbody.appendChild(tr);
+          }
+        }).catch(err => {
+          const tr = table.insertRow(1);
+          tr.innerText = "pojebany steam, zkus to zachvili znovu zmrde";
+          tr.colSpan = 4;
+        });
+    </script>
+    `);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("něco je špatně, zjisti si to sám :D <= (toho smajlíka tam dal github copilot)");
+  }
+});
 
 app.listen(6976, () => {
   console.log("Server is running on port 6976");
