@@ -4,6 +4,14 @@ const db = new sqlite3.Database("app.db");
 const cheerio = require("cheerio");
 require("dotenv").config();
 
+let port = 6972;
+const args = process.argv;
+
+const portIndex = args.findIndex(arg => arg === "--port");
+if (portIndex !== -1) {
+  port = args[portIndex + 1];
+}
+
 db.serialize(() => {
   db.run("CREATE TABLE IF NOT EXISTS steamUsers (steamId TEXT, steamName TEXT)");
 });
@@ -214,10 +222,9 @@ app.get("/inventory", async (req, res) => {
     <script>
       const table = document.querySelector("table");
       
-        fetch("/api/inventory")
+      fetch("/api/inventory")
         .then((res) => res.json())
         .then((data) => {
-        console.log(data);
           for (const [steamId, { name, amount, USDPrice, USDPriceAfterFee }] of Object.entries(data)) {
             const tr = document.createElement("tr");
             tr.innerHTML = \`
@@ -226,9 +233,10 @@ app.get("/inventory", async (req, res) => {
               <td>\${USDPrice}$</td>
               <td>\${USDPriceAfterFee}$</td>
             \`;
-            tbody.appendChild(tr);
+            table.appendChild(tr);
           }
         }).catch(err => {
+          console.error(err);
           const tr = table.insertRow(1);
           tr.innerText = "pojebany steam, zkus to zachvili znovu zmrde";
           tr.colSpan = 4;
@@ -241,6 +249,6 @@ app.get("/inventory", async (req, res) => {
   }
 });
 
-app.listen(6976, () => {
-  console.log("Server is running on port 6976");
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
